@@ -9,12 +9,17 @@
 
 static thread_t* thread_list = NULL;
 static thread_t idle_thread;
+static uint32_t last_thread_id = 0;
+
+#define IDLE_THREAD_ID 0xFFFFFFFF
 
 void scheduler_init()
 {
     idle_thread.local_storage[0] = 0;
     idle_thread.stack = get_stack_pointer();
+    idle_thread.id = IDLE_THREAD_ID;
     set_thread_pointer(&idle_thread);
+
 }
 
 thread_t* determine_next_thread(uint32_t* sleep_time)
@@ -164,6 +169,9 @@ void yield()
 void register_thread(void *thread)
 {
     thread_t *new_thread = (thread_t *)thread;
+
+    // Set the thread id and increment the global thread id
+    new_thread->id = last_thread_id++;
 
     thread_t* cur = thread_list;
 

@@ -14,6 +14,7 @@ typedef struct thread
 #define THREAD_STATE_JOINABLE 0x8
     uint32_t priority;
     uint32_t stack_size;
+    uint32_t id;
     void *stack;
     void *stack_start;
     void *arg;

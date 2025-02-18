@@ -3,10 +3,20 @@
 #include "waker.h"
 #include "thread.h"
 #include "port.h"
+#include <errno.h>
+#include <stddef.h>
 
-void semaphore_init(semaphore_t *sem, uint32_t count)
+int semaphore_init(semaphore_t *sem, uint32_t count)
 {
+    if (sem == NULL)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
     *sem = count;
+
+    return 0;
 }
 
 int semaphore_poll(void *waker)
@@ -41,6 +51,7 @@ int semaphore_wait(semaphore_t *sem, uint32_t timeout)
     // If the timeout is 0, return immediately
     if (timeout == 0)
     {
+        errno = ETIMEDOUT;
         return -1;
     }
 
@@ -59,6 +70,7 @@ int semaphore_wait(semaphore_t *sem, uint32_t timeout)
     thread_t *current = thread_current();
     if (current->state & THREAD_STATE_WAKER_TIMEOUT)
     {
+        errno = ETIMEDOUT;
         return -1;
     }
 

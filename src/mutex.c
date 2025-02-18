@@ -1,24 +1,49 @@
 #include "mutex.h"
 #include "port.h"
+#include "thread.h"
+#include <errno.h>
+#include <stddef.h>
 
-void mutex_init(mutex_t *mutex)
+int mutex_init(mutex_t *mutex)
 {
-    semaphore_init(mutex, 1);
+    if (mutex == NULL)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    semaphore_init(mutex->semaphore, 1);
+    mutex->thread_id = 0;
+
+    return 0;
 }
 
 int mutex_lock(mutex_t *mutex, uint32_t timeout)
 {
-    return semaphore_wait(mutex, timeout);
+    int res = semaphore_wait(mutex->semaphore, timeout);
+
+    // Check if we acquired the lock, if so store the owner
+    if (res == 0)
+    {
+        mutex->thread_id = ((thread_t*)get_thread_pointer())->id;
+    }
+
+    return res;
 }
 
-void mutex_unlock(mutex_t *mutex)
+int mutex_unlock(mutex_t *mutex)
 {
     uint32_t state = enter_critical_section();
 
-    // Only signal the semaphore if it is not already signaled, this is to prevent multiple unlocking
-    if (*mutex == 0)
+    // Only signal the semaphore if it is not already signaled, and we are the owner
+    if (mutex->semaphore == 0 && mutex->thread_id != ((thread_t*)get_thread_pointer())->id)
     {
         semaphore_signal(mutex);
+    }
+    else
+    {
+        // We are not the owner of the mutex
+        errno = EACCES;
     }
 
     exit_critical_section(state);
