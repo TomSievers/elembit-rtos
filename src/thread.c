@@ -30,6 +30,22 @@ thread_t *thread_create(thread_entry_t entry, void *arg, uint32_t priority, void
     return thread;
 }
 
+int thread_run(thread_t *thread, thread_entry_t entry, void *arg)
+{
+    if (thread == NULL)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    thread->state = 0;
+    thread->entry = entry;
+    thread->arg = arg;
+    thread->stack = thread->stack_start;
+
+    return 0;
+}
+
 thread_t *thread_current()
 {
     return (thread_t *)get_thread_pointer();
@@ -76,7 +92,7 @@ int poll_joinable(void * context)
     return 1;
 }
 
-int thread_join(thread_t *thread, uint32_t timeout)
+int thread_join_reusable(thread_t *thread, uint32_t timeout)
 {
     if (thread == NULL)
     {
@@ -87,7 +103,6 @@ int thread_join(thread_t *thread, uint32_t timeout)
 
     if (thread->state & THREAD_STATE_JOINABLE)
     {
-        unregister_thread(thread);
         return 0;
     }
 
@@ -107,10 +122,22 @@ int thread_join(thread_t *thread, uint32_t timeout)
 
     if (thread->state & THREAD_STATE_JOINABLE)
     {
-        unregister_thread(thread);
         return 0;
     }
 
     errno = ETIMEDOUT;
     return -1;
+}
+
+int thread_join(thread_t *thread, uint32_t timeout)
+{
+    int res = thread_join_reusable(thread, timeout);
+
+    // Thread was joined, unregister it
+    if (res == 0)
+    {
+        unregister_thread(thread);
+    }
+
+    return res;
 }

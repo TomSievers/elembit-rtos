@@ -37,6 +37,15 @@ typedef struct thread
 thread_t *thread_create(thread_entry_t entry, void *arg, uint32_t priority, void *stack, uint32_t stack_size);
 
 /**
+ * @brief Run a new function in an existing thread
+ * @param thread Thread to use
+ * @param entry Function to run
+ * @param arg Argument to pass to the thread entry function
+ * @return 0 on success, -1 on error
+ */
+int thread_run(thread_t *thread, thread_entry_t entry, void *arg);
+
+/**
  * @brief Get a pointer to the current thread if we are running in a thread context
  * @return Pointer to the current thread or NULL if we are not running in a thread context
  */
@@ -52,6 +61,14 @@ void thread_sleep(uint32_t timeout);
  * @brief Try to join the thread or timeout
  * @param thread Thread to join
  * @param timeout Timeout in milliseconds
- * @return 0 if the thread was joined, 1 if the timeout was reached, -1 if the thread is not running
+ * @return 0 if the thread was joined, -1 on error errno is set to ETIMEDOUT if the timeout was reached
  */
 int thread_join(thread_t *thread, uint32_t timeout);
+
+/**
+ * @brief Try to join the thread or timeout, but leave the thread in a state where it can be easily reused
+ * @param thread Thread to join
+ * @param timeout Timeout in milliseconds
+ * @return 0 if the thread was joined, -1 on error errno is set to ETIMEDOUT if the timeout was reached
+ */
+int thread_join_reusable(thread_t *thread, uint32_t timeout);

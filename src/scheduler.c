@@ -30,8 +30,8 @@ thread_t* determine_next_thread(uint32_t* sleep_time)
 
     while (cur != NULL)
     {
-        // Check if the thread is running or not started yet
-        if (cur->state & THREAD_STATE_RUNNING || cur->state == 0)
+        // Check if the thread is NOT joinable
+        if (!cur->state & (THREAD_STATE_JOINABLE))
         {
             // Check if the thread is waiting on a waker
             if (cur->state & THREAD_STATE_WAIT_ON_WAKER)
