@@ -3,4 +3,5 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/mutex.c
     ${CMAKE_CURRENT_SOURCE_DIR}/semaphore.c
     ${CMAKE_CURRENT_SOURCE_DIR}/scheduler.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/heap.c
 )
