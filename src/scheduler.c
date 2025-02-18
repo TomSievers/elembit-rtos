@@ -3,10 +3,19 @@
 #include "waker.h"
 #include "time.h"
 #include "port.h"
+#include <semaphore.h>
+#include <errno.h>
 #include <stddef.h>
 
 static thread_t* thread_list = NULL;
-static thread_t* idle_thread = NULL;
+static thread_t idle_thread;
+
+void scheduler_init()
+{
+    idle_thread.local_storage[0] = 0;
+    idle_thread.stack = get_stack_pointer();
+    set_thread_pointer(&idle_thread);
+}
 
 thread_t* determine_next_thread(uint32_t* sleep_time)
 {
@@ -16,8 +25,8 @@ thread_t* determine_next_thread(uint32_t* sleep_time)
 
     while (cur != NULL)
     {
-        // Check if the thread is running
-        if (cur->state & THREAD_STATE_RUNNING)
+        // Check if the thread is running or not started yet
+        if (cur->state & THREAD_STATE_RUNNING || cur->state == 0)
         {
             // Check if the thread is waiting on a waker
             if (cur->state & THREAD_STATE_WAIT_ON_WAKER)
@@ -45,7 +54,12 @@ thread_t* determine_next_thread(uint32_t* sleep_time)
                     {
                         timed_waker_t *twaker = (timed_waker_t *)cur->waker;
 
-                        int result = twaker->poll(cur->waker);
+                        int result = 1;
+
+                        if (twaker->poll != NULL)
+                        {
+                            result = twaker->poll(cur->waker);
+                        }
 
                         // Check if the waker is ready
                         if (result == 0)
@@ -55,7 +69,7 @@ thread_t* determine_next_thread(uint32_t* sleep_time)
                             return cur;
                         }
                         // Check if the waker has timed out
-                        else if (time_cmp(twaker->start_time, time_get()) > twaker->timeout)
+                        else if (time_millis_passed_since(twaker->start_time) > twaker->timeout)
                         {
                             cur->state &= ~THREAD_STATE_WAIT_ON_WAKER;
                             cur->state |= THREAD_STATE_WAKER_TIMEOUT;
@@ -63,9 +77,9 @@ thread_t* determine_next_thread(uint32_t* sleep_time)
                             return cur;
                         }
                         // Update the sleep time with a new minimum
-                        else if (*sleep_time == 0 || time_cmp(twaker->start_time, time_get()) < *sleep_time)
+                        else if (*sleep_time == 0 || time_millis_passed_since(twaker->start_time) < *sleep_time)
                         {
-                            *sleep_time = time_cmp(twaker->start_time, time_get());
+                            *sleep_time = time_millis_passed_since(twaker->start_time);
                         }
                         break;
                     }
@@ -100,8 +114,8 @@ void reschedule()
     else
     {
         // Start a timer and enter the idle thread.
-        start_timer(sleep_time);
-        thread_switch(idle_thread);
+        time_start_timer(sleep_time);
+        thread_switch(&idle_thread);
     }
 }
 
@@ -115,6 +129,7 @@ void register_waker(void *waker)
     }
 
     current->waker = waker;
+    current->state |= THREAD_STATE_WAIT_ON_WAKER;
 }
 
 void unregister_waker()
@@ -131,7 +146,7 @@ void unregister_waker()
 
 void yield()
 {
-    thread_t *current = thread_current();
+    register thread_t *current = thread_current();
 
     if (current == NULL)
     {
@@ -139,8 +154,11 @@ void yield()
     }
 
     current->stack = get_stack_pointer();
+    current->local_storage[0] = errno;
 
     jump_to_supervisor(SUPERVISOR_FUNC_RESCHEDULE);
+
+    errno = current->local_storage[0];
 }
 
 void register_thread(void *thread)
@@ -148,7 +166,6 @@ void register_thread(void *thread)
     thread_t *new_thread = (thread_t *)thread;
 
     thread_t* cur = thread_list;
-    thread_t* prev = NULL;
 
     // Find the correct position to insert the new thread
     while (cur != NULL)
@@ -158,20 +175,53 @@ void register_thread(void *thread)
             break;
         }
 
-        prev = cur;
         cur = cur->next;
     }
 
     // Insert a new thread at the beginning of the list
-    if (prev == NULL)
+    if (cur->prev == NULL)
     {
+        new_thread->prev = NULL;
         new_thread->next = thread_list;
         thread_list = new_thread;
     }
     // Insert a new thread somewhere in the middle or at the end of the list
     else
     {
-        prev->next = new_thread;
+        new_thread->prev = cur->prev;
         new_thread->next = cur;
+        new_thread->prev->next = new_thread;
+        cur->prev = new_thread;
+    }
+}
+
+void unregister_thread(void *thread)
+{
+    thread_t *cur = thread;
+
+    cur->prev->next = cur->next;
+    cur->next->prev = cur->prev;
+}
+
+void thread_entry()
+{
+    register thread_t *current = thread_current();
+
+    if (current != NULL && current->entry != NULL)
+    {
+        // Mark the thread as running
+        current->state |= THREAD_STATE_RUNNING;
+
+        current->entry(current->arg);
+
+        // The thread has finished executing, mark it as joinable
+        current->state |= THREAD_STATE_JOINABLE;
+        current->state &= ~THREAD_STATE_RUNNING;
+    }
+
+    // Make sure we never return (this could cause undefined behavior)
+    while (1)
+    {
+        yield();
     }
 }

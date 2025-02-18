@@ -19,7 +19,9 @@ typedef struct thread
     void *arg;
     thread_entry_t entry;
     void *waker;
+    uint32_t local_storage[4];
     struct thread *next;
+    struct thread *prev;
 } thread_t;
 
 /**
@@ -31,7 +33,7 @@ typedef struct thread
  * @param stack_size Size of the stack
  * @return Pointer to the thread
  */
-thread_t *thread_init(thread_entry_t entry, void *arg, uint32_t priority, void *stack, uint32_t stack_size);
+thread_t *thread_create(thread_entry_t entry, void *arg, uint32_t priority, void *stack, uint32_t stack_size);
 
 /**
  * @brief Get a pointer to the current thread if we are running in a thread context

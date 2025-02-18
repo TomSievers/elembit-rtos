@@ -3,6 +3,13 @@
 #include <stdint.h>
 
 /**
+ * @brief Initialize the scheduler.
+ * This function should be called before any other scheduler functions. (Or thread functions for that matter)
+ * This function will initialize the idle thread and should be called from where the idle thread is located (the main entry point most likely).
+ */
+void scheduler_init();
+
+/**
  * @brief Yield the current thread and schedule another thread to run (This may be the same thread if no other thread needs to be run).
  */
 void yield();
@@ -25,10 +32,10 @@ void unregister_waker();
 void register_thread(void *thread);
 
 /**
- * @brief Register an idle thread.
- * @param thread The idle thread to register.
+ * @brief Unregister a thread from the scheduler.
+ * @param thread The thread to unregister.
  */
-void register_idle_thread(void *thread);
+void unregister_thread(void *thread);
 
 /**
  * @brief Reschedule the threads, should only be called from the supervisor.
@@ -37,3 +44,10 @@ void register_idle_thread(void *thread);
  * When this function is called ensure exclusive access to the scheduler.
  */
 void reschedule();
+
+/**
+ * @brief Entry point for a thread.
+ * This function will call the thread entry function and mark the thread as joinable when it has finished executing
+ * This function should never return.
+ */
+void thread_entry();

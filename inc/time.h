@@ -12,12 +12,35 @@ typedef struct clock {
     stop_timer_t stop_timer;
 } clock_t;
 
+/**
+ * @brief Initialize the time module using the provided clock
+ * @param clock Pointer to the clock struct
+ */
 void time_init(clock_t* clock);
 
-int32_t time_cmp(uint32_t start, uint32_t end);
+/**
+ * @brief Get the number of milliseconds passed since the specified time
+ * @param start Start time
+ * @return Number of milliseconds passed since the start time
+ * @note This function will account for overflow
+ */
+uint32_t time_millis_passed_since(uint32_t start);
 
+/**
+ * @brief Get the current time in milliseconds
+ * @return Current time in milliseconds
+ */
 uint32_t time_get();
 
-void start_timer(uint32_t millis);
+/**
+ * @brief Start a timer that will cause an interrupt after the specified number of milliseconds
+ * @param millis Number of milliseconds to wait before the timer expires
+ * @note This function will call the start_timer function of the clock struct
+ */
+void time_start_timer(uint32_t millis);
 
-void stop_timer();
+/**
+ * @brief Stop the timer
+ * @note This function will call the stop_timer function of the clock struct
+ */
+void time_stop_timer();
