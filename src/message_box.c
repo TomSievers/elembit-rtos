@@ -1,12 +1,21 @@
 #include "message_box.h"
 #include "port.h"
 #include <stddef.h>
+#include <errno.h>
 
-void message_box_init(message_box_t *box, void* heap, uint32_t heap_size)
+int message_box_init(message_box_t *box, void* heap, uint32_t heap_size)
 {
+    if (heap == NULL || heap_size == 0)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
     mutex_init(&box->mutex);
     heap_init(&box->heap, heap, heap_size);
     box->head = NULL;
+
+    return 0;
 }
 
 int message_box_post(message_box_t *box, uint8_t* data, uint32_t length, uint32_t timeout)
@@ -14,6 +23,7 @@ int message_box_post(message_box_t *box, uint8_t* data, uint32_t length, uint32_
     // Check if data is valid
     if (data == NULL || length == 0)
     {
+        errno = EINVAL;
         return -1;
     }
 
@@ -22,7 +32,7 @@ int message_box_post(message_box_t *box, uint8_t* data, uint32_t length, uint32_
 
     if (message == NULL)
     {
-        mutex_unlock(&box->mutex);
+        errno = ENOMEM;
         return -1;
     }
 
@@ -34,6 +44,7 @@ int message_box_post(message_box_t *box, uint8_t* data, uint32_t length, uint32_
     if (message->data == NULL)
     {
         heap_free(&box->heap, message);
+        errno = ENOMEM;
         return -1;
     }
 
@@ -50,6 +61,7 @@ int message_box_post(message_box_t *box, uint8_t* data, uint32_t length, uint32_
     {
         heap_free(&box->heap, message->data);
         heap_free(&box->heap, message);
+        errno = ETIMEDOUT;
         return res;
     }
 
@@ -73,6 +85,7 @@ int message_box_fetch_buf(message_box_t *box, uint8_t* data, uint32_t timeout)
 {
     if (data == NULL)
     {
+        errno = EINVAL;
         return -1;
     }
 
@@ -81,6 +94,7 @@ int message_box_fetch_buf(message_box_t *box, uint8_t* data, uint32_t timeout)
 
     if (box->head == NULL)
     {
+        errno = ENODATA;
         exit_critical_section(state);
         return -1;
     }
@@ -106,14 +120,11 @@ int message_box_fetch_buf(message_box_t *box, uint8_t* data, uint32_t timeout)
         data[i] = message->data[i];
     }
 
+    uint32_t length = message->length;
+
     // Clean up the message
     heap_free(&box->heap, message->data);
     heap_free(&box->heap, message);
 
-    return 0;
-}
-
-int message_box_free(message_box_t *box, uint8_t* data)
-{
-    return 0;
+    return length;
 }

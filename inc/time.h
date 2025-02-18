@@ -12,6 +12,8 @@ typedef struct clock {
     stop_timer_t stop_timer;
 } clock_t;
 
+#define TIMEOUT_INF 0xFFFFFFFF
+
 /**
  * @brief Initialize the time module using the provided clock
  * @param clock Pointer to the clock struct
