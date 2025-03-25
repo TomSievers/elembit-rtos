@@ -1,0 +1,150 @@
+#include "scheduler.h"
+#include "thread.h"
+#include "waker.h"
+#include "time.h"
+#include "port.h"
+#include <stddef.h>
+#include <stdbool.h>
+
+#if defined(ROUND_ROBIN)
+
+static void remove_thread_from_schedule(thread_t* thread)
+{
+    if (thread->prev_in_schedule == NULL)
+    {
+        schedule = thread->next_in_schedule;
+    }
+    else
+    {
+        thread->prev_in_schedule->next_in_schedule = thread->next_in_schedule;
+    }
+
+    if (thread->next_in_schedule != NULL)
+    {
+        thread->next_in_schedule->prev_in_schedule = thread->prev_in_schedule;
+    }
+
+    thread->prev_in_schedule = NULL;
+    thread->next_in_schedule = NULL;
+}
+
+#ifndef TIME_SLICE
+#define TIME_SLICE 10
+#endif
+
+static thread_t *schedule;
+
+thread_t* determine_next_thread(thread_t* thread_list, uint32_t* sleep_time)
+{
+    bool schedule_start = false;
+    thread_t* cur = schedule;
+
+    // The schedule is empty, start from the beginning
+    if (cur == NULL)
+    {
+        schedule_start = true;
+        cur = thread_list;
+        schedule = cur;
+    }
+
+    *sleep_time = 0xFFFFFFFF;
+
+    while (cur != NULL)
+    {
+        // Make sure to initialize the next and prev in schedule pointers
+        if ((cur->next_in_schedule == NULL || schedule_start) && cur->next != NULL)
+        {
+            cur->next_in_schedule = cur->next;
+        }
+
+        if ((cur->prev_in_schedule == NULL || schedule_start) && cur->prev != NULL)
+        {
+            cur->prev_in_schedule = cur->prev;
+        }
+
+        if (cur->consumed_time_slice > TIME_SLICE)
+        {
+            remove_thread_from_schedule(cur);
+        }
+        // A joineable thread will never be run again remove it from the thread list.
+        else if (cur->state & THREAD_STATE_JOINABLE)
+        {
+            unregister_thread(cur);
+        }
+        else
+        {
+            // Check if the thread is waiting on a waker
+            if (cur->state & THREAD_STATE_WAIT_ON_WAKER)
+            {
+                // Check if the waker is ready
+                if (cur->waker != NULL)
+                {
+                    event_waker_t *waker = (event_waker_t *)cur->waker;
+
+                    switch (waker->waker_type)
+                    {
+                    case WAKER_EVENT:
+                    {
+                        int result = waker->poll(cur->waker);
+
+                        if (result == 0)
+                        {
+                            cur->state &= ~THREAD_STATE_WAIT_ON_WAKER;
+                            cur->waker = NULL;
+                            return cur;
+                        }
+                        break;  
+                    }
+                    case WAKER_TIMED:
+                    {
+                        timed_waker_t *twaker = (timed_waker_t *)cur->waker;
+
+                        int result = 1;
+
+                        if (twaker->poll != NULL)
+                        {
+                            result = twaker->poll(cur->waker);
+                        }
+
+                        // Check if the waker is ready
+                        if (result == 0)
+                        {
+                            cur->state &= ~THREAD_STATE_WAIT_ON_WAKER;
+                            cur->waker = NULL;
+                            return cur;
+                        }
+                        // Check if the waker has timed out
+                        else if (time_millis_passed_since(twaker->start_time) > twaker->timeout)
+                        {
+                            cur->state &= ~THREAD_STATE_WAIT_ON_WAKER;
+                            cur->state |= THREAD_STATE_WAKER_TIMEOUT;
+                            cur->waker = NULL;
+                            return cur;
+                        }
+                        // Update the sleep time with a new minimum
+                        else if (*sleep_time == 0 || time_millis_passed_since(twaker->start_time) < *sleep_time)
+                        {
+                            *sleep_time = time_millis_passed_since(twaker->start_time);
+                        }
+                        break;
+                    }
+                    default:
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                return cur;
+            }
+        }
+
+        cur = cur->next_in_schedule;
+    }
+
+    // There are no threads to run, restart the schedule on the next time slice.
+    schedule = NULL;
+    return NULL;
+}
+
+#endif

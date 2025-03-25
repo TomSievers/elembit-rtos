@@ -20,9 +20,19 @@ typedef struct thread
     void *arg;
     thread_entry_t entry;
     void *waker;
+    
     uint32_t local_storage[4];
     struct thread *next;
     struct thread *prev;
+#ifdef ROUND_ROBIN
+    uint32_t consumed_time_slice;
+    struct thread* next_in_schedule;
+    struct thread* prev_in_schedule;
+#endif
+
+#ifdef MP
+    int32_t affinity;
+#endif
 } thread_t;
 
 /**
