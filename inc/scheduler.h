@@ -51,3 +51,15 @@ void reschedule();
  * This function should never return.
  */
 void thread_entry();
+
+/**
+ * @brief Apply a global lock to the scheduler.
+ * @note This function blocks until the lock is acquired.
+ */
+void scheduler_lock();
+
+/**
+ * @brief Release the global lock on the scheduler.
+ * @note This function unblocks any cores waiting for the lock.
+ */
+void scheduler_unlock();

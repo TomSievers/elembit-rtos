@@ -8,7 +8,13 @@
 
 #if defined(ROUND_ROBIN)
 
-static void remove_thread_from_schedule(thread_t* thread)
+#ifndef TIME_SLICE
+#define TIME_SLICE 10
+#endif
+
+static thread_t *schedule;
+
+static void remove_thread_from_schedule(thread_t *thread)
 {
     if (thread->prev_in_schedule == NULL)
     {
@@ -28,16 +34,10 @@ static void remove_thread_from_schedule(thread_t* thread)
     thread->next_in_schedule = NULL;
 }
 
-#ifndef TIME_SLICE
-#define TIME_SLICE 10
-#endif
-
-static thread_t *schedule;
-
-thread_t* determine_next_thread(thread_t* thread_list, uint32_t* sleep_time)
+thread_t *determine_next_thread(thread_t *thread_list, uint32_t *sleep_time)
 {
     bool schedule_start = false;
-    thread_t* cur = schedule;
+    thread_t *cur = schedule;
 
     // The schedule is empty, start from the beginning
     if (cur == NULL)
@@ -73,69 +73,75 @@ thread_t* determine_next_thread(thread_t* thread_list, uint32_t* sleep_time)
         }
         else
         {
-            // Check if the thread is waiting on a waker
-            if (cur->state & THREAD_STATE_WAIT_ON_WAKER)
+            // Check if we are allowed to run the thread
+#ifdef MP
+            if (cur->affinity == -1 || cur->affinity == get_core_id())
+#endif
             {
-                // Check if the waker is ready
-                if (cur->waker != NULL)
+                // Check if the thread is waiting on a waker
+                if (cur->state & THREAD_STATE_WAIT_ON_WAKER)
                 {
-                    event_waker_t *waker = (event_waker_t *)cur->waker;
-
-                    switch (waker->waker_type)
+                    // Check if the waker is ready
+                    if (cur->waker != NULL)
                     {
-                    case WAKER_EVENT:
-                    {
-                        int result = waker->poll(cur->waker);
+                        event_waker_t *waker = (event_waker_t *)cur->waker;
 
-                        if (result == 0)
+                        switch (waker->waker_type)
                         {
-                            cur->state &= ~THREAD_STATE_WAIT_ON_WAKER;
-                            cur->waker = NULL;
-                            return cur;
-                        }
-                        break;  
-                    }
-                    case WAKER_TIMED:
-                    {
-                        timed_waker_t *twaker = (timed_waker_t *)cur->waker;
+                        case WAKER_EVENT:
+                        {
+                            int result = waker->poll(cur->waker);
 
-                        int result = 1;
+                            if (result == 0)
+                            {
+                                cur->state &= ~THREAD_STATE_WAIT_ON_WAKER;
+                                cur->waker = NULL;
+                                return cur;
+                            }
+                            break;
+                        }
+                        case WAKER_TIMED:
+                        {
+                            timed_waker_t *twaker = (timed_waker_t *)cur->waker;
 
-                        if (twaker->poll != NULL)
-                        {
-                            result = twaker->poll(cur->waker);
-                        }
+                            int result = 1;
 
-                        // Check if the waker is ready
-                        if (result == 0)
-                        {
-                            cur->state &= ~THREAD_STATE_WAIT_ON_WAKER;
-                            cur->waker = NULL;
-                            return cur;
+                            if (twaker->poll != NULL)
+                            {
+                                result = twaker->poll(cur->waker);
+                            }
+
+                            // Check if the waker is ready
+                            if (result == 0)
+                            {
+                                cur->state &= ~THREAD_STATE_WAIT_ON_WAKER;
+                                cur->waker = NULL;
+                                return cur;
+                            }
+                            // Check if the waker has timed out
+                            else if (time_millis_passed_since(twaker->start_time) > twaker->timeout)
+                            {
+                                cur->state &= ~THREAD_STATE_WAIT_ON_WAKER;
+                                cur->state |= THREAD_STATE_WAKER_TIMEOUT;
+                                cur->waker = NULL;
+                                return cur;
+                            }
+                            // Update the sleep time with a new minimum
+                            else if (*sleep_time == 0 || time_millis_passed_since(twaker->start_time) < *sleep_time)
+                            {
+                                *sleep_time = time_millis_passed_since(twaker->start_time);
+                            }
+                            break;
                         }
-                        // Check if the waker has timed out
-                        else if (time_millis_passed_since(twaker->start_time) > twaker->timeout)
-                        {
-                            cur->state &= ~THREAD_STATE_WAIT_ON_WAKER;
-                            cur->state |= THREAD_STATE_WAKER_TIMEOUT;
-                            cur->waker = NULL;
-                            return cur;
+                        default:
+                            break;
                         }
-                        // Update the sleep time with a new minimum
-                        else if (*sleep_time == 0 || time_millis_passed_since(twaker->start_time) < *sleep_time)
-                        {
-                            *sleep_time = time_millis_passed_since(twaker->start_time);
-                        }
-                        break;
-                    }
-                    default:
-                        break;
                     }
                 }
-            }
-            else
-            {
-                return cur;
+                else
+                {
+                    return cur;
+                }
             }
         }
 

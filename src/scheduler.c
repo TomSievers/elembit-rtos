@@ -3,7 +3,7 @@
 #include "waker.h"
 #include "time.h"
 #include "port.h"
-#include <semaphore.h>
+#include <mutex.h>
 #include <errno.h>
 #include <stddef.h>
 
@@ -19,7 +19,6 @@ void scheduler_init()
     idle_thread.stack = get_stack_pointer();
     idle_thread.id = IDLE_THREAD_ID;
     set_thread_pointer(&idle_thread);
-
 }
 
 extern thread_t* determine_next_thread(thread_t* thread_list, uint32_t* sleep_time);
@@ -85,6 +84,9 @@ void yield()
 
 void register_thread(void *thread)
 {
+    // Lock the scheduler so the thread list is not modified while we are adding a new thread
+    scheduler_lock();
+
     thread_t *new_thread = (thread_t *)thread;
 
     // Set the thread id and increment the global thread id
@@ -118,14 +120,20 @@ void register_thread(void *thread)
         new_thread->prev->next = new_thread;
         cur->prev = new_thread;
     }
+
+    scheduler_unlock();
 }
 
 void unregister_thread(void *thread)
 {
+    scheduler_lock();
+
     thread_t *cur = thread;
 
     cur->prev->next = cur->next;
     cur->next->prev = cur->prev;
+
+    scheduler_unlock();
 }
 
 void thread_entry()
@@ -150,3 +158,23 @@ void thread_entry()
         yield();
     }
 }
+
+#ifdef MP
+void scheduler_lock()
+{
+    mp_global_lock();
+}
+
+void scheduler_unlock()
+{
+    mp_global_unlock();
+}
+#else
+void scheduler_lock()
+{
+}
+
+void scheduler_unlock()
+{
+}
+#endif

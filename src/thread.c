@@ -25,26 +25,30 @@ thread_t *thread_create(thread_entry_t entry, void *arg, uint32_t priority, void
     thread->waker = NULL;
     thread->next = NULL;
 
+#ifdef ROUND_ROBIN
+    thread->consumed_time_slice = 0;
+    thread->next_in_schedule = NULL;
+    thread->prev_in_schedule = NULL;
+#endif
+
+#ifdef MP
+    thread->affinity = -1;
+#endif
+
     register_thread(thread);
 
     return thread;
 }
 
-int thread_run(thread_t *thread, thread_entry_t entry, void *arg)
+#ifdef MP
+
+thread_t *thread_create_on_core(uint16_t core_id, thread_entry_t entry, void *arg, uint32_t priority, void *stack, uint32_t stack_size)
 {
-    if (thread == NULL)
-    {
-        errno = EINVAL;
-        return -1;
-    }
-
-    thread->state = 0;
-    thread->entry = entry;
-    thread->arg = arg;
-    thread->stack = thread->stack_start;
-
-    return 0;
+    thread_t* thread = thread_create(entry, arg, priority, stack, stack_size);
+    thread->affinity = core_id;
 }
+
+#endif // MP
 
 thread_t *thread_current()
 {
@@ -92,7 +96,7 @@ int poll_joinable(void * context)
     return 1;
 }
 
-int thread_join_reusable(thread_t *thread, uint32_t timeout)
+int thread_join(thread_t *thread, uint32_t timeout)
 {
     if (thread == NULL)
     {
@@ -127,17 +131,4 @@ int thread_join_reusable(thread_t *thread, uint32_t timeout)
 
     errno = ETIMEDOUT;
     return -1;
-}
-
-int thread_join(thread_t *thread, uint32_t timeout)
-{
-    int res = thread_join_reusable(thread, timeout);
-
-    // Thread was joined, unregister it
-    if (res == 0)
-    {
-        unregister_thread(thread);
-    }
-
-    return res;
 }

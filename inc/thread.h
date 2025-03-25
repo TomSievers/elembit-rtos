@@ -25,6 +25,7 @@ typedef struct thread
     struct thread *next;
     struct thread *prev;
 #ifdef ROUND_ROBIN
+    uint32_t time_slice_start;
     uint32_t consumed_time_slice;
     struct thread* next_in_schedule;
     struct thread* prev_in_schedule;
@@ -46,14 +47,19 @@ typedef struct thread
  */
 thread_t *thread_create(thread_entry_t entry, void *arg, uint32_t priority, void *stack, uint32_t stack_size);
 
+#ifdef MP
 /**
- * @brief Run a new function in an existing thread
- * @param thread Thread to use
- * @param entry Function to run
+ * @brief Create a thread on a specific core
+ * @param core_id Core to run the thread on
+ * @param entry Thread entry function
  * @param arg Argument to pass to the thread entry function
- * @return 0 on success, -1 on error
+ * @param priority Thread priority
+ * @param stack Pointer to the stack
+ * @param stack_size Size of the stack
+ * @return Pointer to the thread
  */
-int thread_run(thread_t *thread, thread_entry_t entry, void *arg);
+thread_t *thread_create_on_core(uint16_t core_id, thread_entry_t entry, void *arg, uint32_t priority, void *stack, uint32_t stack_size);
+#endif // MP
 
 /**
  * @brief Get a pointer to the current thread if we are running in a thread context
@@ -74,11 +80,3 @@ void thread_sleep(uint32_t timeout);
  * @return 0 if the thread was joined, -1 on error errno is set to ETIMEDOUT if the timeout was reached
  */
 int thread_join(thread_t *thread, uint32_t timeout);
-
-/**
- * @brief Try to join the thread or timeout, but leave the thread in a state where it can be easily reused
- * @param thread Thread to join
- * @param timeout Timeout in milliseconds
- * @return 0 if the thread was joined, -1 on error errno is set to ETIMEDOUT if the timeout was reached
- */
-int thread_join_reusable(thread_t *thread, uint32_t timeout);

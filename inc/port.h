@@ -45,3 +45,25 @@ extern void exit_critical_section(uint32_t state);
  * @param thread Pointer to the thread to switch to
  */
 extern void thread_switch(void *thread);
+
+#ifdef MP
+
+/**
+ * @brief Lock a global resource in a multi-processor environment
+ * @note This function must block if the resource is already locked
+ */
+extern void mp_global_lock();
+
+/**
+ * @brief Unlock a global resource in a multi-processor environment
+ * @note This function must unblock any cores waiting for the resource
+ */
+extern void mp_global_unlock();
+
+/**
+ * @brief Get the core id of where the function is running
+ * @return uint16_t Core id
+ */
+extern uint16_t core_id();
+
+#endif
