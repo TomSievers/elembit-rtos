@@ -33,6 +33,7 @@ typedef struct thread
 
 #ifdef MP
     int32_t affinity;
+    void* spinlock;
 #endif
 } thread_t;
 

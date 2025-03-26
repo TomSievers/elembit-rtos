@@ -14,8 +14,19 @@
 
 static thread_t *schedule;
 
+#ifdef MP
+static void* scheduler_spinlock;
+#endif
+
+static inline void scheduler_lock();
+static inline void scheduler_unlock();
+
+static inline void lock_thread(thread_t *thread);
+static inline void unlock_thread(thread_t *thread);
+
 static void remove_thread_from_schedule(thread_t *thread)
 {
+    scheduler_lock();
     if (thread->prev_in_schedule == NULL)
     {
         schedule = thread->next_in_schedule;
@@ -32,36 +43,49 @@ static void remove_thread_from_schedule(thread_t *thread)
 
     thread->prev_in_schedule = NULL;
     thread->next_in_schedule = NULL;
+    scheduler_unlock();
+
+}
+
+static void initialize_thread_schedule(thread_t *thread_list)
+{
+    thread_t *cur = thread_list;
+
+    while (cur != NULL)
+    {
+        cur->consumed_time_slice = 0;
+        cur->next_in_schedule = cur->next;
+        cur->prev_in_schedule = cur->prev;
+
+        cur = cur->next;
+    }
+}
+
+void schedule_impl_init()
+{
+    schedule = NULL;
+    scheduler_spinlock = mp_acquire_spinlock(true);
 }
 
 thread_t *determine_next_thread(thread_t *thread_list, uint32_t *sleep_time)
 {
-    bool schedule_start = false;
     thread_t *cur = schedule;
 
     // The schedule is empty, start from the beginning
+    scheduler_lock();
     if (cur == NULL)
     {
-        schedule_start = true;
         cur = thread_list;
         schedule = cur;
+        initialize_thread_schedule(schedule);
     }
+    scheduler_unlock();
 
     *sleep_time = 0xFFFFFFFF;
 
     while (cur != NULL)
     {
-        // Make sure to initialize the next and prev in schedule pointers
-        if ((cur->next_in_schedule == NULL || schedule_start) && cur->next != NULL)
-        {
-            cur->next_in_schedule = cur->next;
-        }
-
-        if ((cur->prev_in_schedule == NULL || schedule_start) && cur->prev != NULL)
-        {
-            cur->prev_in_schedule = cur->prev;
-        }
-
+        // The thread has consumed its time slice, remove it from the schedule
         if (cur->consumed_time_slice > TIME_SLICE)
         {
             remove_thread_from_schedule(cur);
@@ -75,9 +99,13 @@ thread_t *determine_next_thread(thread_t *thread_list, uint32_t *sleep_time)
         {
             // Check if we are allowed to run the thread
 #ifdef MP
-            if (cur->affinity == -1 || cur->affinity == get_core_id())
+            if (cur->affinity == -1 || cur->affinity == core_id())
 #endif
             {
+                lock_thread(cur);
+
+                thread_t *ret = NULL;
+
                 // Check if the thread is waiting on a waker
                 if (cur->state & THREAD_STATE_WAIT_ON_WAKER)
                 {
@@ -142,6 +170,8 @@ thread_t *determine_next_thread(thread_t *thread_list, uint32_t *sleep_time)
                 {
                     return cur;
                 }
+
+                unlock_thread(cur);
             }
         }
 
@@ -152,5 +182,39 @@ thread_t *determine_next_thread(thread_t *thread_list, uint32_t *sleep_time)
     schedule = NULL;
     return NULL;
 }
+
+#ifdef MP
+static inline void scheduler_lock()
+{
+    mp_spinlock_lock(scheduler_spinlock);
+}
+static inline void scheduler_unlock()
+{
+    mp_spinlock_unlock(scheduler_spinlock);
+}
+static inline void lock_thread(thread_t *thread)
+{
+    mp_spinlock_lock(thread->spinlock);
+}
+static inline void unlock_thread(thread_t *thread)
+{
+    mp_spinlock_unlock(thread->spinlock);
+}
+#else
+static inline void scheduler_lock()
+{
+}
+static inline void scheduler_unlock()
+{
+}
+static inline void lock_thread(thread_t *thread)
+{
+    (void)thread;
+}
+static inline void unlock_thread(thread_t *thread)
+{
+    (void)thread;
+}
+#endif
 
 #endif

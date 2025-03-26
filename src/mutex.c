@@ -22,8 +22,8 @@ int mutex_lock(mutex_t *mutex, uint32_t timeout)
 {
     int res = semaphore_wait(&mutex->semaphore, timeout);
 
-    // Check if we acquired the lock, if so store the owner
-    if (res == 0)
+    // Check if we acquired the lock, and we are in a thread context, then store the thread id
+    if (res == 0 && get_thread_pointer() != NULL)
     {
         mutex->thread_id = ((thread_t*)get_thread_pointer())->id;
     }

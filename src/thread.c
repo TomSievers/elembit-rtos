@@ -33,6 +33,13 @@ thread_t *thread_create(thread_entry_t entry, void *arg, uint32_t priority, void
 
 #ifdef MP
     thread->affinity = -1;
+    thread->spinlock = mp_acquire_spinlock(false);
+
+    // If we are unable to acquire a spinlock, we cannot create the thread
+    if (thread->spinlock == NULL)
+    {
+        return NULL;
+    }
 #endif
 
     register_thread(thread);
@@ -45,7 +52,13 @@ thread_t *thread_create(thread_entry_t entry, void *arg, uint32_t priority, void
 thread_t *thread_create_on_core(uint16_t core_id, thread_entry_t entry, void *arg, uint32_t priority, void *stack, uint32_t stack_size)
 {
     thread_t* thread = thread_create(entry, arg, priority, stack, stack_size);
+    if (thread == NULL)
+    {
+        return NULL;
+    }
     thread->affinity = core_id;
+
+    return thread;
 }
 
 #endif // MP

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdbool.h>
 
 /**
  * @brief Get the current stack pointer
@@ -49,16 +50,24 @@ extern void thread_switch(void *thread);
 #ifdef MP
 
 /**
- * @brief Lock a global resource in a multi-processor environment
- * @note This function must block if the resource is already locked
+ * @brief Acquire a spinlock for a multi-processor environment
+ * @param exclusive True if the lock MUST be exclusive, false if a shared spinlock is allowed
+ * @return Pointer to the spinlock
+ * @note At least 2 exclusive spinlocks must be available.
  */
-extern void mp_global_lock();
+extern void* mp_acquire_spinlock(bool exclusive);
 
 /**
- * @brief Unlock a global resource in a multi-processor environment
- * @note This function must unblock any cores waiting for the resource
+ * @brief Try to lock a spinlock, blocks if the lock is already taken
+ * @param spinlock Spinlock to lock
  */
-extern void mp_global_unlock();
+extern void mp_spinlock_lock(void* spinlock);
+
+/**
+ * @brief Unlock a acquired spinlock
+ * @param spinlock Spinlock to lock
+ */
+extern void mp_spinlock_unlock(void *spinlock);
 
 /**
  * @brief Get the core id of where the function is running
