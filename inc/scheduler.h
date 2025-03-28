@@ -1,6 +1,8 @@
 #pragma once
 
 #include <stdint.h>
+#include <thread.h>
+#include <port.h>
 
 /**
  * @brief Initialize the scheduler.
@@ -35,7 +37,7 @@ void register_thread(void *thread);
  * @brief Unregister a thread from the scheduler.
  * @param thread The thread to unregister.
  */
-void unregister_thread(void *thread);
+void unregister_thread(volatile void *thread);
 
 /**
  * @brief Reschedule the threads, should only be called from the supervisor.
@@ -51,3 +53,38 @@ void reschedule();
  * This function should never return.
  */
 void thread_entry();
+
+/**
+ * @brief Lock the current thread from multi core access.
+ * @param thread The thread to lock.
+ * @note This function should be called when the thread is being modified.
+ */
+inline void lock_thread(volatile thread_t *thread);
+
+/**
+ * @brief Unlock the current thread for multi core access.
+ * @param thread The thread to unlock.
+ * @note This function should be called when the thread is no longer being modified.
+ */
+inline void unlock_thread(volatile thread_t *thread);
+
+#ifdef MP
+
+inline void lock_thread(volatile thread_t *thread)
+{
+    mp_spinlock_lock(thread->spinlock);
+}
+inline void unlock_thread(volatile thread_t *thread)
+{
+    mp_spinlock_unlock(thread->spinlock);
+}
+#else
+inline void lock_thread(volatile thread_t *thread)
+{
+    (void)thread;
+}
+inline void unlock_thread(volatile thread_t *thread)
+{
+    (void)thread;
+}
+#endif

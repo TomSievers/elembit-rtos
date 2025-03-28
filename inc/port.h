@@ -45,7 +45,18 @@ extern void exit_critical_section(uint32_t state);
  * @brief Switch to a new thread
  * @param thread Pointer to the thread to switch to
  */
-extern void thread_switch(void *thread);
+extern void thread_switch(volatile void *thread);
+
+#ifdef ROUND_ROBIN
+
+/**
+ * @brief Schedule the end of the next time slice in x millis. At the end of the time slice, the scheduler will be called.
+ * @param millis Milliseconds till the current time slice ends.
+ * @note On multi-processor systems, this needs to be independent for each core.
+ */
+extern void schedule_time_slice_end(uint32_t millis);
+
+#endif
 
 #ifdef MP
 
@@ -55,19 +66,19 @@ extern void thread_switch(void *thread);
  * @return Pointer to the spinlock
  * @note At least 2 exclusive spinlocks must be available.
  */
-extern void* mp_acquire_spinlock(bool exclusive);
+extern volatile void* mp_acquire_spinlock(bool exclusive);
 
 /**
  * @brief Try to lock a spinlock, blocks if the lock is already taken
  * @param spinlock Spinlock to lock
  */
-extern void mp_spinlock_lock(void* spinlock);
+extern void mp_spinlock_lock(volatile void* spinlock);
 
 /**
  * @brief Unlock a acquired spinlock
  * @param spinlock Spinlock to lock
  */
-extern void mp_spinlock_unlock(void *spinlock);
+extern void mp_spinlock_unlock(volatile void *spinlock);
 
 /**
  * @brief Get the core id of where the function is running

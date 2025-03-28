@@ -7,17 +7,17 @@
 #include <errno.h>
 #include <stddef.h>
 
-static thread_t* thread_list = NULL;
+static volatile thread_t* thread_list = NULL;
 static thread_t idle_thread;
 static uint32_t last_thread_id = 0;
 
 #ifdef MP
-static void* thread_list_spinlock;
+static volatile void* thread_list_spinlock;
 #endif
 
 #define IDLE_THREAD_ID 0xFFFFFFFF
 
-extern thread_t* determine_next_thread(thread_t* thread_list, uint32_t* sleep_time);
+extern volatile thread_t* determine_next_thread(volatile thread_t* thread_list, uint32_t* sleep_time);
 extern void schedule_impl_init();
 
 static void thread_list_lock();
@@ -37,7 +37,7 @@ void scheduler_init()
     schedule_impl_init();
 }
 
-thread_t* is_thread_runnable(thread_t* cur)
+volatile thread_t* is_thread_runnable(volatile thread_t* cur, uint32_t* sleep_time)
 {
     // Check if the thread is waiting on a waker
     if (cur->state & THREAD_STATE_WAIT_ON_WAKER)
@@ -99,7 +99,7 @@ thread_t* is_thread_runnable(thread_t* cur)
             }
         }
     }
-    else
+    else if(!(cur->state & THREAD_STATE_RUNNING))
     {
         return cur;
     }
@@ -110,7 +110,7 @@ thread_t* is_thread_runnable(thread_t* cur)
 void reschedule()
 {
     uint32_t sleep_time = 0xFFFFFFFF;
-    thread_t* next_thread = determine_next_thread(thread_list, &sleep_time);
+    volatile thread_t* next_thread = determine_next_thread(thread_list, &sleep_time);
 
     if (next_thread != NULL)
     {
@@ -176,7 +176,7 @@ void register_thread(void *thread)
     // Set the thread id and increment the global thread id
     new_thread->id = last_thread_id++;
 
-    thread_t* cur = thread_list;
+    volatile thread_t* cur = thread_list;
 
     // Find the correct position to insert the new thread
     while (cur != NULL)
@@ -208,11 +208,11 @@ void register_thread(void *thread)
     thread_list_unlock();
 }
 
-void unregister_thread(void *thread)
+void unregister_thread(volatile void *thread)
 {
     thread_list_lock();
 
-    thread_t *cur = thread;
+    volatile thread_t *cur = thread;
 
     cur->prev->next = cur->next;
     cur->next->prev = cur->prev;
@@ -227,13 +227,13 @@ void thread_entry()
     if (current != NULL && current->entry != NULL)
     {
         // Mark the thread as running
-        current->state |= THREAD_STATE_RUNNING;
+        current->state |= THREAD_STATE_ACTIVE;
 
         current->entry(current->arg);
 
         // The thread has finished executing, mark it as joinable
         current->state |= THREAD_STATE_JOINABLE;
-        current->state &= ~THREAD_STATE_RUNNING;
+        current->state &= ~THREAD_STATE_ACTIVE;
     }
 
     // Make sure we never return (this could cause undefined behavior)

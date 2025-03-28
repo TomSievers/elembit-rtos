@@ -7,80 +7,55 @@
 
 #if !defined(ROUND_ROBIN)
 
-thread_t* determine_next_thread(thread_t* thread_list, uint32_t* sleep_time)
+extern thread_t* is_thread_runnable(volatile thread_t* cur, uint32_t* sleep_time);
+
+volatile thread_t* determine_next_thread(volatile thread_t* thread_list, uint32_t* sleep_time)
 {
-    thread_t* cur = thread_list;
+    volatile thread_t *last_thread = get_thread_pointer();
+
+    if (last_thread != NULL)
+    {
+        lock_thread(last_thread);
+
+        last_thread->state &= ~THREAD_STATE_RUNNING;
+
+        unlock_thread(last_thread);
+    }
+
+    volatile thread_t* cur = thread_list;
 
     *sleep_time = 0xFFFFFFFF;
 
     while (cur != NULL)
     {
-        // Check if the thread is NOT joinable
-        if (!cur->state & (THREAD_STATE_JOINABLE))
+        // A joineable thread will never be run again remove it from the thread list.
+        if (cur->state & THREAD_STATE_JOINABLE)
         {
-            // Check if the thread is waiting on a waker
-            if (cur->state & THREAD_STATE_WAIT_ON_WAKER)
+            unregister_thread(cur);
+        }
+        else
+        {
+            // Check if we are allowed to run the thread
+#ifdef MP
+            if (cur->affinity == -1 || cur->affinity == core_id())
+#endif
             {
-                // Check if the waker is ready
-                if (cur->waker != NULL)
+                lock_thread(cur);
+
+                volatile thread_t *ret = is_thread_runnable(cur, sleep_time);
+
+                if (ret != NULL)
                 {
-                    event_waker_t *waker = (event_waker_t *)cur->waker;
-
-                    switch (waker->waker_type)
-                    {
-                    case WAKER_EVENT:
-                    {
-                        int result = waker->poll(cur->waker);
-
-                        if (result == 0)
-                        {
-                            cur->state &= ~THREAD_STATE_WAIT_ON_WAKER;
-                            cur->waker = NULL;
-                            return cur;
-                        }
-                        break;  
-                    }
-                    case WAKER_TIMED:
-                    {
-                        timed_waker_t *twaker = (timed_waker_t *)cur->waker;
-
-                        int result = 1;
-
-                        if (twaker->poll != NULL)
-                        {
-                            result = twaker->poll(cur->waker);
-                        }
-
-                        // Check if the waker is ready
-                        if (result == 0)
-                        {
-                            cur->state &= ~THREAD_STATE_WAIT_ON_WAKER;
-                            cur->waker = NULL;
-                            return cur;
-                        }
-                        // Check if the waker has timed out
-                        else if (time_millis_passed_since(twaker->start_time) > twaker->timeout)
-                        {
-                            cur->state &= ~THREAD_STATE_WAIT_ON_WAKER;
-                            cur->state |= THREAD_STATE_WAKER_TIMEOUT;
-                            cur->waker = NULL;
-                            return cur;
-                        }
-                        // Update the sleep time with a new minimum
-                        else if (*sleep_time == 0 || time_millis_passed_since(twaker->start_time) < *sleep_time)
-                        {
-                            *sleep_time = time_millis_passed_since(twaker->start_time);
-                        }
-                        break;
-                    }
-                    default:
-                        break;
-                    }
+                    // Indicate to possibly another core that we are running this thread
+                    ret->state |= THREAD_STATE_RUNNING;
                 }
-            }
-            else
-            {
-                return cur;
+
+                unlock_thread(cur);
+
+                if (ret != NULL)
+                {
+                    return ret;
+                }
             }
         }
 

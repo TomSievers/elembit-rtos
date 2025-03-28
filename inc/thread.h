@@ -8,10 +8,11 @@ typedef void (*thread_entry_t)(void *);
 typedef struct thread
 {
     uint32_t state;
-#define THREAD_STATE_RUNNING 0x1
+#define THREAD_STATE_ACTIVE 0x1
 #define THREAD_STATE_WAIT_ON_WAKER 0x2
 #define THREAD_STATE_WAKER_TIMEOUT 0x4
 #define THREAD_STATE_JOINABLE 0x8
+#define THREAD_STATE_RUNNING 0x10
     uint32_t priority;
     uint32_t stack_size;
     uint32_t id;
@@ -22,18 +23,18 @@ typedef struct thread
     void *waker;
     
     uint32_t local_storage[4];
-    struct thread *next;
-    struct thread *prev;
+    volatile struct thread *next;
+    volatile struct thread *prev;
 #ifdef ROUND_ROBIN
     uint32_t time_slice_start;
     uint32_t consumed_time_slice;
-    struct thread* next_in_schedule;
-    struct thread* prev_in_schedule;
+    volatile struct thread* next_in_schedule;
+    volatile struct thread* prev_in_schedule;
 #endif
 
 #ifdef MP
     int32_t affinity;
-    void* spinlock;
+    volatile void* spinlock;
 #endif
 } thread_t;
 
