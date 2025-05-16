@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <errno.h>
 
-int message_box_init(message_box_t *box, void* heap, uint32_t heap_size)
+int message_box_init(message_box_t *box, void *heap, uint32_t heap_size)
 {
     if (heap == NULL || heap_size == 0)
     {
@@ -18,7 +18,7 @@ int message_box_init(message_box_t *box, void* heap, uint32_t heap_size)
     return 0;
 }
 
-int message_box_post(message_box_t *box, uint8_t* data, uint32_t length, uint32_t timeout)
+int message_box_post(message_box_t *box, uint8_t *data, uint32_t length, uint32_t timeout)
 {
     // Check if data is valid
     if (data == NULL || length == 0)
@@ -48,7 +48,7 @@ int message_box_post(message_box_t *box, uint8_t* data, uint32_t length, uint32_
         return -1;
     }
 
-    // Copy the data to the message, do this before locking the mutex to 
+    // Copy the data to the message, do this before locking the mutex to
     // avoid locking the mutex for longer than necessary.
     for (uint32_t i = 0; i < length; i++)
     {
@@ -81,7 +81,7 @@ int message_box_post(message_box_t *box, uint8_t* data, uint32_t length, uint32_
     return 0;
 }
 
-int message_box_fetch_buf(message_box_t *box, uint8_t* data, uint32_t timeout)
+int message_box_fetch_buf(message_box_t *box, uint8_t *data, uint32_t timeout)
 {
     if (data == NULL)
     {

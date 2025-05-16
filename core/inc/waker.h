@@ -14,7 +14,7 @@ typedef struct event_waker
 {
     waker_type_t waker_type;
     poll_fn poll;
-    void* context;
+    void *context;
     struct waker *next;
 } event_waker_t;
 
@@ -22,7 +22,7 @@ typedef struct timed_waker
 {
     waker_type_t waker_type;
     poll_fn poll;
-    void* context;
+    void *context;
     struct waker *next;
     uint32_t timeout;
     uint32_t start_time;
@@ -36,7 +36,7 @@ typedef struct timed_waker
  * @param timeout Timeout in milliseconds
  * @note The poll function should return 0 if the event is ready, otherwise 1
  */
-void init_timed_waker(timed_waker_t *waker, poll_fn poll, void* context, uint32_t timeout);
+void init_timed_waker(timed_waker_t *waker, poll_fn poll, void *context, uint32_t timeout);
 
 /**
  * @brief Initialize an event waker
@@ -45,4 +45,4 @@ void init_timed_waker(timed_waker_t *waker, poll_fn poll, void* context, uint32_
  * @param context Context to pass to the poll function
  * @note The poll function should return 0 if the event is ready, otherwise 1
  */
-void init_event_waker(event_waker_t *waker, poll_fn poll, void* context);
+void init_event_waker(event_waker_t *waker, poll_fn poll, void *context);

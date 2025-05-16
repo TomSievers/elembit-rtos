@@ -6,7 +6,8 @@ typedef void (*start_timer_t)(uint32_t millis);
 typedef void (*stop_timer_t)();
 typedef uint32_t (*get_time_t)();
 
-typedef struct clock {
+typedef struct clock
+{
     get_time_t get_time;
     start_timer_t start_timer;
     stop_timer_t stop_timer;
@@ -18,7 +19,7 @@ typedef struct clock {
  * @brief Initialize the time module using the provided clock
  * @param clock Pointer to the clock struct
  */
-void time_init(clock_t* clock);
+void time_init(clock_t *clock);
 
 /**
  * @brief Get the number of milliseconds passed since the specified time

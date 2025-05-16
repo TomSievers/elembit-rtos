@@ -19,7 +19,7 @@ inline void clear_allocated(void *ptr)
     ptr = (void *)(((intptr_t)ptr) & ~0x01);
 }
 
-inline void* get_next(void *ptr)
+inline void *get_next(void *ptr)
 {
     return (void *)(((intptr_t)ptr) & ~0x01);
 }
@@ -46,7 +46,6 @@ int heap_init(heap_t *heap, void *memory, uint32_t size)
 
 void *heap_alloc(heap_t *heap, uint32_t size)
 {
-    void *ptr = NULL;
     if (size > 0)
     {
         int ret = mutex_lock(&heap->mutex, 0);
@@ -84,7 +83,7 @@ void *heap_alloc(heap_t *heap, uint32_t size)
                         new_header->next = header->next;
                         header->next = new_header;
                         set_allocated(header);
-                        
+
                         mutex_unlock(&heap->mutex);
 
                         return (void *)(header + 1);
@@ -137,6 +136,3 @@ void heap_free(heap_t *heap, void *ptr)
 
     errno = EINVAL;
 }
-
-
-

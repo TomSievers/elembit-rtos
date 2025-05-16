@@ -21,20 +21,20 @@ typedef struct thread
     void *arg;
     thread_entry_t entry;
     void *waker;
-    
+
     uint32_t local_storage[4];
     volatile struct thread *next;
     volatile struct thread *prev;
 #ifdef ROUND_ROBIN
     uint32_t time_slice_start;
     uint32_t consumed_time_slice;
-    volatile struct thread* next_in_schedule;
-    volatile struct thread* prev_in_schedule;
+    volatile struct thread *next_in_schedule;
+    volatile struct thread *prev_in_schedule;
 #endif
 
-#ifdef MP
+#ifdef MULTI_PROCESSING
     int32_t affinity;
-    volatile void* spinlock;
+    volatile void *spinlock;
 #endif
 } thread_t;
 
@@ -49,7 +49,7 @@ typedef struct thread
  */
 thread_t *thread_create(thread_entry_t entry, void *arg, uint32_t priority, void *stack, uint32_t stack_size);
 
-#ifdef MP
+#ifdef MULTI_PROCESSING
 /**
  * @brief Create a thread on a specific core
  * @param core_id Core to run the thread on
@@ -61,7 +61,7 @@ thread_t *thread_create(thread_entry_t entry, void *arg, uint32_t priority, void
  * @return Pointer to the thread
  */
 thread_t *thread_create_on_core(uint16_t core_id, thread_entry_t entry, void *arg, uint32_t priority, void *stack, uint32_t stack_size);
-#endif // MP
+#endif // MULTI_PROCESSING
 
 /**
  * @brief Get a pointer to the current thread if we are running in a thread context

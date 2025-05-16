@@ -7,17 +7,17 @@
 #include <errno.h>
 #include <stddef.h>
 
-static volatile thread_t* thread_list = NULL;
+static volatile thread_t *thread_list = NULL;
 static thread_t idle_thread;
 static uint32_t last_thread_id = 0;
 
-#ifdef MP
-static volatile void* thread_list_spinlock;
+#ifdef MULTI_PROCESSING
+static volatile void *thread_list_spinlock;
 #endif
 
 #define IDLE_THREAD_ID 0xFFFFFFFF
 
-extern volatile thread_t* determine_next_thread(volatile thread_t* thread_list, uint32_t* sleep_time);
+extern volatile thread_t *determine_next_thread(volatile thread_t *thread_list, uint32_t *sleep_time);
 extern void schedule_impl_init();
 
 static void thread_list_lock();
@@ -30,14 +30,14 @@ void scheduler_init()
     idle_thread.id = IDLE_THREAD_ID;
     set_thread_pointer(&idle_thread);
 
-#ifdef MP
+#ifdef MULTI_PROCESSING
     thread_list_spinlock = mp_acquire_spinlock(true);
 #endif
 
     schedule_impl_init();
 }
 
-volatile thread_t* is_thread_runnable(volatile thread_t* cur, uint32_t* sleep_time)
+volatile thread_t *is_thread_runnable(volatile thread_t *cur, uint32_t *sleep_time)
 {
     // Check if the thread is waiting on a waker
     if (cur->state & THREAD_STATE_WAIT_ON_WAKER)
@@ -99,7 +99,7 @@ volatile thread_t* is_thread_runnable(volatile thread_t* cur, uint32_t* sleep_ti
             }
         }
     }
-    else if(!(cur->state & THREAD_STATE_RUNNING))
+    else if (!(cur->state & THREAD_STATE_RUNNING))
     {
         return cur;
     }
@@ -110,7 +110,7 @@ volatile thread_t* is_thread_runnable(volatile thread_t* cur, uint32_t* sleep_ti
 void reschedule()
 {
     uint32_t sleep_time = 0xFFFFFFFF;
-    volatile thread_t* next_thread = determine_next_thread(thread_list, &sleep_time);
+    volatile thread_t *next_thread = determine_next_thread(thread_list, &sleep_time);
 
     if (next_thread != NULL)
     {
@@ -176,7 +176,7 @@ void register_thread(void *thread)
     // Set the thread id and increment the global thread id
     new_thread->id = last_thread_id++;
 
-    volatile thread_t* cur = thread_list;
+    volatile thread_t *cur = thread_list;
 
     // Find the correct position to insert the new thread
     while (cur != NULL)
@@ -243,7 +243,7 @@ void thread_entry()
     }
 }
 
-#ifdef MP
+#ifdef MULTI_PROCESSING
 static void thread_list_lock()
 {
     mp_spinlock_lock(thread_list_spinlock);

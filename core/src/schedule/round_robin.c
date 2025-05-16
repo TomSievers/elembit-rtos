@@ -6,7 +6,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-#if defined(ROUND_ROBIN)
+#if RR_SCHEDULE
 
 #ifndef TIME_SLICE
 #define TIME_SLICE 10
@@ -14,11 +14,11 @@
 
 static volatile thread_t *schedule;
 
-#ifdef MP
-static volatile void* scheduler_spinlock;
+#ifdef MULTI_PROCESSING
+static volatile void *scheduler_spinlock;
 #endif
 
-extern thread_t* is_thread_runnable(volatile thread_t* cur, uint32_t* sleep_time);
+extern thread_t *is_thread_runnable(volatile thread_t *cur, uint32_t *sleep_time);
 
 static inline void scheduler_lock();
 static inline void scheduler_unlock();
@@ -42,9 +42,8 @@ static void remove_thread_from_schedule(volatile thread_t *thread)
     }
     thread->next_in_schedule = NULL;
     thread->prev_in_schedule = NULL;
-    
-    scheduler_unlock();
 
+    scheduler_unlock();
 }
 
 static void initialize_thread_schedule(volatile thread_t *thread_list)
@@ -111,7 +110,7 @@ volatile thread_t *determine_next_thread(volatile thread_t *thread_list, uint32_
         else
         {
             // Check if we are allowed to run the thread
-#ifdef MP
+#ifdef MULTI_PROCESSING
             if (cur->affinity == -1 || cur->affinity == core_id())
 #endif
             {
@@ -148,7 +147,7 @@ volatile thread_t *determine_next_thread(volatile thread_t *thread_list, uint32_
     return NULL;
 }
 
-#ifdef MP
+#ifdef MULTI_PROCESSING
 static inline void scheduler_lock()
 {
     mp_spinlock_lock(scheduler_spinlock);

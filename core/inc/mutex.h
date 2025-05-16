@@ -3,7 +3,7 @@
 #include "semaphore.h"
 #include <stdint.h>
 
-typedef struct mutex_t 
+typedef struct mutex_t
 {
     semaphore_t semaphore;
     uint32_t thread_id;

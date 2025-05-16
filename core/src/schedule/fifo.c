@@ -5,11 +5,11 @@
 #include "port.h"
 #include <stddef.h>
 
-#if !defined(ROUND_ROBIN)
+#if FIFO_SCHEDULE
 
-extern thread_t* is_thread_runnable(volatile thread_t* cur, uint32_t* sleep_time);
+extern thread_t *is_thread_runnable(volatile thread_t *cur, uint32_t *sleep_time);
 
-volatile thread_t* determine_next_thread(volatile thread_t* thread_list, uint32_t* sleep_time)
+volatile thread_t *determine_next_thread(volatile thread_t *thread_list, uint32_t *sleep_time)
 {
     volatile thread_t *last_thread = get_thread_pointer();
 
@@ -22,7 +22,7 @@ volatile thread_t* determine_next_thread(volatile thread_t* thread_list, uint32_
         unlock_thread(last_thread);
     }
 
-    volatile thread_t* cur = thread_list;
+    volatile thread_t *cur = thread_list;
 
     *sleep_time = 0xFFFFFFFF;
 
@@ -36,7 +36,7 @@ volatile thread_t* determine_next_thread(volatile thread_t* thread_list, uint32_
         else
         {
             // Check if we are allowed to run the thread
-#ifdef MP
+#ifdef MULTI_PROCESSING
             if (cur->affinity == -1 || cur->affinity == core_id())
 #endif
             {

@@ -47,7 +47,7 @@ extern void exit_critical_section(uint32_t state);
  */
 extern void thread_switch(volatile void *thread);
 
-#ifdef ROUND_ROBIN
+#ifdef RR_SCHEDULE
 
 /**
  * @brief Schedule the end of the next time slice in x millis. At the end of the time slice, the scheduler will be called.
@@ -58,7 +58,7 @@ extern void schedule_time_slice_end(uint32_t millis);
 
 #endif
 
-#ifdef MP
+#ifdef MULTI_PROCESSING
 
 /**
  * @brief Acquire a spinlock for a multi-processor environment
@@ -66,13 +66,13 @@ extern void schedule_time_slice_end(uint32_t millis);
  * @return Pointer to the spinlock
  * @note At least 2 exclusive spinlocks must be available.
  */
-extern volatile void* mp_acquire_spinlock(bool exclusive);
+extern volatile void *mp_acquire_spinlock(bool exclusive);
 
 /**
  * @brief Try to lock a spinlock, blocks if the lock is already taken
  * @param spinlock Spinlock to lock
  */
-extern void mp_spinlock_lock(volatile void* spinlock);
+extern void mp_spinlock_lock(volatile void *spinlock);
 
 /**
  * @brief Unlock a acquired spinlock

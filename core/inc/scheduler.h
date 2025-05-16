@@ -68,7 +68,7 @@ inline void lock_thread(volatile thread_t *thread);
  */
 inline void unlock_thread(volatile thread_t *thread);
 
-#ifdef MP
+#ifdef MULTI_PROCESSING
 
 inline void lock_thread(volatile thread_t *thread)
 {

@@ -18,8 +18,8 @@ thread_t *thread_create(thread_entry_t entry, void *arg, uint32_t priority, void
     thread->state = 0;
     thread->priority = priority;
     thread->stack_size = stack_size;
-    thread->stack = stack + sizeof(thread_t);
-    thread->stack_start = stack + sizeof(thread_t);
+    thread->stack = (void *)((intptr_t)stack + sizeof(thread_t));
+    thread->stack_start = (void *)((intptr_t)stack + sizeof(thread_t));
     thread->arg = arg;
     thread->entry = entry;
     thread->waker = NULL;
@@ -31,7 +31,7 @@ thread_t *thread_create(thread_entry_t entry, void *arg, uint32_t priority, void
     thread->prev_in_schedule = NULL;
 #endif
 
-#ifdef MP
+#ifdef MULTI_PROCESSING
     thread->affinity = -1;
     thread->spinlock = mp_acquire_spinlock(false);
 
@@ -47,11 +47,11 @@ thread_t *thread_create(thread_entry_t entry, void *arg, uint32_t priority, void
     return thread;
 }
 
-#ifdef MP
+#ifdef MULTI_PROCESSING
 
 thread_t *thread_create_on_core(uint16_t core_id, thread_entry_t entry, void *arg, uint32_t priority, void *stack, uint32_t stack_size)
 {
-    thread_t* thread = thread_create(entry, arg, priority, stack, stack_size);
+    thread_t *thread = thread_create(entry, arg, priority, stack, stack_size);
     if (thread == NULL)
     {
         return NULL;
@@ -61,7 +61,7 @@ thread_t *thread_create_on_core(uint16_t core_id, thread_entry_t entry, void *ar
     return thread;
 }
 
-#endif // MP
+#endif // MULTI_PROCESSING
 
 thread_t *thread_current()
 {
@@ -92,7 +92,7 @@ void thread_sleep(uint32_t timeout)
     unregister_waker();
 }
 
-int poll_joinable(void * context)
+int poll_joinable(void *context)
 {
     thread_t *thread = (thread_t *)context;
 
