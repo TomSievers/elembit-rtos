@@ -7,6 +7,7 @@ RUN apt-get update && \
     build-essential \
     clang \
     cmake \
+    ssh \
     ninja-build && \
     rm -rf /var/lib/apt/lists/*
 
