@@ -25,7 +25,7 @@ thread_t *thread_create(thread_entry_t entry, void *arg, uint32_t priority, void
     thread->waker = NULL;
     thread->next = NULL;
 
-#ifdef ROUND_ROBIN
+#ifdef RR_SCHEDULE
     thread->consumed_time_slice = 0;
     thread->next_in_schedule = NULL;
     thread->prev_in_schedule = NULL;

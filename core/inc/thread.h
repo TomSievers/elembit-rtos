@@ -25,7 +25,7 @@ typedef struct thread
     uint32_t local_storage[4];
     volatile struct thread *next;
     volatile struct thread *prev;
-#ifdef ROUND_ROBIN
+#ifdef RR_SCHEDULE
     uint32_t time_slice_start;
     uint32_t consumed_time_slice;
     volatile struct thread *next_in_schedule;
@@ -35,6 +35,10 @@ typedef struct thread
 #ifdef MULTI_PROCESSING
     int32_t affinity;
     volatile void *spinlock;
+#endif
+
+#ifdef ASSYMMETRIC_MULTI_PROCESSING
+    uint32_t performance_metric;
 #endif
 } thread_t;
 

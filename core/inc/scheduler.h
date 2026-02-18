@@ -4,6 +4,16 @@
 #include <thread.h>
 #include <port.h>
 
+#ifdef ASSYMMETRIC_MULTI_PROCESSING
+
+typedef struct core_info
+{
+    uint32_t core_id;            // The core id of the core
+    uint32_t performance_metric; // The performance metric of the core (higher is better)
+} core_info_t;
+
+#endif // ASSYMMETRIC_MULTI_PROCESSING
+
 /**
  * @brief Initialize the scheduler.
  * This function should be called before any other scheduler functions. (Or thread functions for that matter)
@@ -67,6 +77,14 @@ inline void lock_thread(volatile thread_t *thread);
  * @note This function should be called when the thread is no longer being modified.
  */
 inline void unlock_thread(volatile thread_t *thread);
+
+#ifdef ASSYMMETRIC_MULTI_PROCESSING
+/**
+ * @brief Get information about the current core.
+ * @return A pointer to the core info structure.
+ */
+const core_info_t *get_core_info(uint32_t core_id);
+#endif
 
 #ifdef MULTI_PROCESSING
 
